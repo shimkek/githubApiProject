@@ -4,7 +4,8 @@
   "description": "",
   "main": "index.js",
   "dependencies": {
-    "dotenv": "^8.2.0"
+    "dotenv": "^8.2.0",
+    "regenerator-runtime": "^0.13.7"
   },
   "devDependencies": {
     "sass": "^1.26.10"
@@ -13,5 +14,8 @@
     "dev": "parcel serve src/index.html --out-dir build --open"
   },
   "author": "",
-  "license": "ISC"
+  "license": "ISC",
+  "browserslist": [
+    "last 1 Chrome version"
+  ]
 }
