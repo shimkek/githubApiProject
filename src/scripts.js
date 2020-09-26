@@ -2,27 +2,67 @@ import 'regenerator-runtime/runtime';
 require('dotenv').config();
 const CLIENT_ID = process.env.CLIENT_ID;
 const CLIENT_SECRET = process.env.CLIENT_SECRET;
-
-const testURL = 'https://api.github.com/search/repositories?q=tetris+language:assembly&sort=stars&order=desc';
+let pagesDisplayed = 0;
+let lastSearchRequest = [];
+//const testURL = 'https://api.github.com/search/repositories?q=tetris+language:assembly&sort=stars&order=desc&per_page=10';
+//const urlWithPage = [`${testURL}&page=1`, 1];
 
 console.log('basic initialization');
 
-const searchRepository = async() => {
+const searchRepository = async(isSearchRequestNew) => {
+    console.clear();
     console.log('searchRepository function started');
-
-    const textArea = document.getElementById('input');
-    console.log('fetching...');
-    const searchResult = await getFetchResult(testURL);
-    console.log(searchResult);
-    fillRepoList(searchResult);
+    pagesDisplayed++;
     
-}
+
+    if (isSearchRequestNew === true) {
+        console.log(`Search request:${document.getElementById('input').value}`);
+        document.getElementById('repoList').innerHTML='';
+        pagesDisplayed = 1;
+        
+    }
+
+    if(document.getElementById('input').value !== '' && isSearchRequestNew === true) { 
+        console.log('fetching...');
+
+        
+        const searchResult = await getFetchResult(createSearchRequest());
+        console.log(searchResult);
+        fillRepoList(searchResult);
+
+    } else if (document.getElementById('input').value === '' && isSearchRequestNew === true){
+        console.log(`No value provided`);
+    } else {
+        const lastSearchRequestAndPage = `${lastSearchRequest[0]}${lastSearchRequest[1]+1}`      
+        console.log(lastSearchRequestAndPage);
+        const searchResult = await getFetchResult(lastSearchRequestAndPage);
+        console.log(searchResult);
+        fillRepoList(searchResult);
+        lastSearchRequest[1]++;
+    }
+};
+
+const createSearchRequest = () => {
+    const plainText = document.getElementById('input').value;
+    console.log(`Plain Text:'${plainText}'`);
+    let result = `https://api.github.com/search/repositories?q=${plainText.trim()}`;
+    console.log(result);
+
+    lastSearchRequest = [`${encodeURI(result)}&sort=stars&order=desc&per_page=10&page=`, 1];
+    console.log(lastSearchRequest);
+    result = `${encodeURI(result)}&sort=stars&order=desc&per_page=10&page=1`;
+    console.log(result);
+
+    document.getElementById('input').value = '';
+
+    return result;
+};
 
 const getFetchResult = async(url) => {
     let response = await fetch(url);
 
     console.log(response.headers.get('x-ratelimit-remaining')+`/10 requests left`);
-    
+//    console.log(response.headers.get('link'));
     let result = await response.json();
     console.log('fetching done');
     return result;
@@ -37,6 +77,9 @@ const createRepoList = () => {
 
 const fillRepoList = (object) => {
     const ul = document.getElementById('repoList');
+    const total_results = object.total_count;
+    
+    console.log(`Total results:${total_results} Current page:${pagesDisplayed}`);
 
     for (let i=0; i<object.items.length; i++) {
         const li = document.createElement('li');
@@ -67,11 +110,6 @@ const fillRepoList = (object) => {
         watchers_El.className = `repoList__watchersCount`;
         watchers_El.href = `${html_url}/stargazers`;
 
-        const language_El = document.createElement('span');
-        language_El.style.fontSize='12px';
-        language_El.className=`repoList__language`;
-        language_El.textContent= `  ${language}  `;
-
         const updated_at_El = document.createElement('span');
         updated_at_El.style.fontSize='12px';
         updated_at_El.textContent = `Updated on ${updated_at.slice(0, 10)}`;
@@ -81,7 +119,14 @@ const fillRepoList = (object) => {
         li.appendChild(full_name_El);
         li.appendChild(description_El);
         li.appendChild(watchers_El);
-        li.appendChild(language_El);
+
+        if (object.items[i].language !== null){
+            const language_El = document.createElement('span');
+            language_El.style.fontSize='12px';
+            language_El.className=`repoList__language`;
+            language_El.textContent= `  ${language}  `;
+            li.appendChild(language_El);
+        }
 
         if (object.items[i].license !== null) {
             const license_El = document.createElement('span');
@@ -94,9 +139,30 @@ const fillRepoList = (object) => {
         li.appendChild(updated_at_El);
         li.className = "repoList__item";
         ul.appendChild(li);
+
+        
     }
+    if (document.getElementById('loadMoreButton')=== null) {
+    const loadMoreButton = document.createElement('button');
+    loadMoreButton.className = 'repoList__button';
+    loadMoreButton.id = 'loadMoreButton';
+    loadMoreButton.textContent = 'load more';
+    document.body.appendChild(loadMoreButton);
+    document.getElementById('loadMoreButton').addEventListener('click', function() {
+        searchRepository(false);
+    });
+    };
 }
+
 
 createRepoList();
 
-document.getElementById('button').addEventListener('click', searchRepository);
+document.getElementById('button').addEventListener('click', function() {
+    searchRepository(true);
+});
+
+document.getElementById('login').addEventListener('click', async function() {
+    const proxyurl = `https://cors-anywhere.herokuapp.com/`;
+    const url = `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}`;
+    location.href=url;
+})

@@ -1,6 +1,11 @@
 .repoList {
     list-style-type: none;
     padding-inline-start: 0px;
+    margin-left: 5%;
+
+    &__button {
+        margin-left: 5%;  
+    }
 
     &__item {
         border-bottom: solid 1px #e1e4e8;
