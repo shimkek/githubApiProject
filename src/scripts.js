@@ -1,3 +1,6 @@
+const { Octokit } = require("@octokit/rest");
+const octokit = new Octokit();
+const { createOAuthAppAuth } = require("@octokit/auth");
 import 'regenerator-runtime/runtime';
 require('dotenv').config();
 const CLIENT_ID = process.env.CLIENT_ID;
@@ -29,6 +32,7 @@ const searchRepository = async(isSearchRequestNew) => {
         const searchResult = await getFetchResult(createSearchRequest());
         console.log(searchResult);
         fillRepoList(searchResult);
+        document.getElementById('loadMoreButton').disabled = false;
 
     } else if (document.getElementById('input').value === '' && isSearchRequestNew === true){
         console.log(`No value provided`);
@@ -80,6 +84,21 @@ const fillRepoList = (object) => {
     const total_results = object.total_count;
     
     console.log(`Total results:${total_results} Current page:${pagesDisplayed}`);
+    
+    if (document.getElementById(`noRepositoriesMessage`) !== null) {
+        document.getElementById(`noRepositoriesMessage`).remove();
+    }
+
+    
+    if (object.items.length === 0) {
+        const loadMoreButton = document.getElementById('loadMoreButton');
+        const noRepositoriesMessage = document.createElement('div');
+        noRepositoriesMessage.id = `noRepositoriesMessage`;
+        noRepositoriesMessage.className = `repoList__message`;
+        noRepositoriesMessage.textContent = `No more repositories to display 	(｡◕‿‿◕｡)`;
+        document.body.insertBefore(noRepositoriesMessage, loadMoreButton);
+        loadMoreButton.disabled = true;
+    };
 
     for (let i=0; i<object.items.length; i++) {
         const li = document.createElement('li');
@@ -141,28 +160,68 @@ const fillRepoList = (object) => {
         ul.appendChild(li);
 
         
-    }
+    };
     if (document.getElementById('loadMoreButton')=== null) {
-    const loadMoreButton = document.createElement('button');
-    loadMoreButton.className = 'repoList__button';
-    loadMoreButton.id = 'loadMoreButton';
-    loadMoreButton.textContent = 'load more';
-    document.body.appendChild(loadMoreButton);
-    document.getElementById('loadMoreButton').addEventListener('click', function() {
+        const loadMoreButton = document.createElement('button');
+        loadMoreButton.className = 'repoList__button';
+        loadMoreButton.id = 'loadMoreButton';
+        loadMoreButton.textContent = 'load more';
+        document.body.appendChild(loadMoreButton);
+        document.getElementById('loadMoreButton').addEventListener('click', function() {
         searchRepository(false);
     });
+
+
     };
 }
 
+const parseCodeFromUrl = () => {
+    const url = new URL(window.location.href);   
+    const code = url.searchParams.get('code');
+
+    return code;
+}
+
+const getAccessToken = async(code) => {
+    const auth = createOAuthAppAuth({
+        clientId: CLIENT_ID,
+        clientSecret: CLIENT_SECRET,
+        code: code, // code from OAuth web flow, see https://git.io/fhd1D
+      });
+      
+    const appAuthentication = await auth({
+        type: "oauth-app",
+        url: "/orgs/:org/repos",
+      });
+    const tokenAuthentication = await auth({ type: "token" });
+
+    console.log(tokenAuthentication);
+};
+
+const checkAuth = () => {
+    console.log('Checking for authorization');
+    const isAuthorized = localStorage.getItem('isAuthorized');
+    if (isAuthorized === true) {
+        console.log('Authorizaton successful');
+    } else  {
+        localStorage.setItem('isAuthorized', false);
+        const code = parseCodeFromUrl();
+        if (code !== null) {
+            getAccessToken(code);
+        } else {
+            console.log('Authorizaton not complete');
+        };
+    };
+}
 
 createRepoList();
+checkAuth();
 
 document.getElementById('button').addEventListener('click', function() {
     searchRepository(true);
 });
 
 document.getElementById('login').addEventListener('click', async function() {
-    const proxyurl = `https://cors-anywhere.herokuapp.com/`;
     const url = `https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}`;
     location.href=url;
 })
